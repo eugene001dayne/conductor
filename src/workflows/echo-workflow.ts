@@ -1,20 +1,31 @@
 import { proxyActivities } from "@temporalio/workflow"
 import type { WorkflowConfig } from "../schema/workflow-config"
+import type { SafeProposeParams, SafeProposeResult } from "../activities/safe-multisig"
 
-// Import activities via proxy — this is how Temporal isolates workflow from activity code
-const { echo } = proxyActivities<{ echo: (params: { message: string }) => Promise<string> }>({
-  startToCloseTimeout: "10 seconds",
+const activities = proxyActivities<{
+  echo: (params: { message: string }) => Promise<string>
+  safePropose: (params: SafeProposeParams) => Promise<SafeProposeResult>
+}>({
+  startToCloseTimeout: "60 seconds",
 })
 
-// Main workflow — reads the config and executes each step in order
 export async function conductorWorkflow(config: WorkflowConfig): Promise<string[]> {
   const results: string[] = []
 
   for (const step of config.steps) {
     if (step.type === "echo") {
       const message = (step.params?.message as string) ?? "no message"
-      const result = await echo({ message })
+      const result = await activities.echo({ message })
       results.push(result)
+    }
+
+    if (step.type === "safe.propose") {
+      const result = await activities.safePropose({
+        to: step.params?.to as string,
+        value_eth: step.params?.value_eth as string,
+        data: step.params?.data as string | undefined,
+      })
+      results.push(`Safe tx proposed: ${result.safeTxHash}`)
     }
   }
 

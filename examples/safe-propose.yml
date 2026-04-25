@@ -1,0 +1,19 @@
+name: safe-propose-test
+version: "1.0"
+
+steps:
+  - id: step-1
+    type: echo
+    params:
+      message: "Starting Safe multisig proposal workflow."
+
+  - id: step-2
+    type: safe.propose
+    params:
+      to: "0xEb65E3D7024874298AF6FcbC59888c9e8089EB9F"
+      value_eth: "0.001"
+
+  - id: step-3
+    type: echo
+    params:
+      message: "Safe transaction proposed. Check Safe UI for pending transaction."

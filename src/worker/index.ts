@@ -1,5 +1,6 @@
 import { Worker, NativeConnection } from "@temporalio/worker"
 import { echo } from "../activities/echo"
+import { safePropose } from "../activities/safe-multisig"
 import * as dotenv from "dotenv"
 
 dotenv.config()
@@ -23,7 +24,7 @@ export async function createWorker(): Promise<Worker> {
 
   const worker = await Worker.create({
     workflowsPath: require.resolve("../workflows/echo-workflow"),
-    activities: { echo },
+    activities: { echo, safePropose },
     taskQueue,
     connection,
     namespace,
