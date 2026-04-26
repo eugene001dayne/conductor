@@ -1,0 +1,25 @@
+name: webhook-conditional-test
+version: "1.0"
+
+steps:
+  - id: step-1
+    type: echo
+    params:
+      message: "Starting conditional webhook workflow."
+
+  - id: step-2
+    type: webhook
+    if: "step-1.success"
+    params:
+      url: "https://webhook.site/92206d09-9233-42d3-9260-47c165a674cc"
+      payload:
+        event: "conductor.workflow.started"
+        project: "CONDUCTOR"
+        phase: "Phase 3 - Webhook connector with conditionals"
+        message: "If you see this, CONDUCTOR routed a conditional step to your webhook."
+
+  - id: step-3
+    type: echo
+    if: "step-2.success"
+    params:
+      message: "Webhook delivered. Conditional logic working."

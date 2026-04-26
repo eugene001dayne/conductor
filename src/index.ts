@@ -14,7 +14,7 @@ async function run() {
   const worker = await createWorker()
 
   // Load and parse the example YAML workflow
-  const yamlPath = path.resolve(__dirname, "../examples/safe-propose.yml")
+  const yamlPath = path.resolve(__dirname, "../examples/webhook-conditional.yml")
   const raw = fs.readFileSync(yamlPath, "utf8")
   const parsed = yaml.load(raw)
   const config = WorkflowConfigSchema.parse(parsed)
