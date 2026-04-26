@@ -1,4 +1,6 @@
-import "dotenv/config"
+import * as dotenv from "dotenv"
+dotenv.config()
+
 import { Client, Connection } from "@temporalio/client"
 import { createWorker } from "./worker/index"
 import { WorkflowConfigSchema } from "./schema/workflow-config"
@@ -10,18 +12,12 @@ import * as path from "path"
 async function run() {
   console.log("[CONDUCTOR] Starting worker...")
 
-  // Start the worker
   const worker = await createWorker()
 
-  // Load and parse the example YAML workflow
-  const yamlPath = path.resolve(__dirname, "../examples/full-agent-flow.yml")
-  const raw = fs.readFileSync(yamlPath, "utf8")
-  const parsed = yaml.load(raw)
-  const config = WorkflowConfigSchema.parse(parsed)
+  // In worker-only mode (Docker), just run the worker and wait for workflows
+  // In dev mode, also trigger a test workflow
+  const devMode = process.env.CONDUCTOR_DEV_MODE === "true"
 
-  console.log(`[CONDUCTOR] Loaded workflow: ${config.name}`)
-
-  // Connect client to Temporal Cloud
   const connection = await Connection.connect({
     address: process.env.TEMPORAL_ADDRESS,
     apiKey: process.env.TEMPORAL_API_KEY,
@@ -33,26 +29,33 @@ async function run() {
     namespace: process.env.TEMPORAL_NAMESPACE,
   })
 
-  // Run worker and trigger workflow concurrently
-  await Promise.all([
-    worker.run(),
-    (async () => {
-      // Small delay to let worker connect first
-      await new Promise((res) => setTimeout(res, 1000))
+  if (devMode) {
+    const yamlPath = path.resolve(__dirname, "../examples/full-agent-flow.yml")
+    const raw = fs.readFileSync(yamlPath, "utf8")
+    const parsed = yaml.load(raw)
+    const config = WorkflowConfigSchema.parse(parsed)
 
-      console.log("[CONDUCTOR] Triggering workflow...")
+    console.log(`[CONDUCTOR] Dev mode — loaded workflow: ${config.name}`)
 
-      const handle = await client.workflow.start(conductorWorkflow, {
-        args: [config],
-        taskQueue: process.env.TEMPORAL_TASK_QUEUE ?? "conductor-task-queue",
-        workflowId: `conductor-${Date.now()}`,
-      })
-
-      const results = await handle.result()
-      console.log("[CONDUCTOR] Workflow complete. Results:", results)
-      process.exit(0)
-    })(),
-  ])
+    await Promise.all([
+      worker.run(),
+      (async () => {
+        await new Promise((res) => setTimeout(res, 1000))
+        console.log("[CONDUCTOR] Triggering workflow...")
+        const handle = await client.workflow.start(conductorWorkflow, {
+          args: [config],
+          taskQueue: process.env.TEMPORAL_TASK_QUEUE ?? "conductor-task-queue",
+          workflowId: `conductor-${Date.now()}`,
+        })
+        const results = await handle.result()
+        console.log("[CONDUCTOR] Workflow complete. Results:", results)
+        process.exit(0)
+      })(),
+    ])
+  } else {
+    console.log("[CONDUCTOR] Worker mode — waiting for workflows...")
+    await worker.run()
+  }
 }
 
 run().catch((err) => {

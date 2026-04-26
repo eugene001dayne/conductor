@@ -1,0 +1,44 @@
+name: CONDUCTOR CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build TypeScript
+        run: pnpm build
+
+      - name: Verify build output exists
+        run: |
+          ls dist/
+          echo "Build successful — CONDUCTOR compiled clean."
+
+      - name: Docker build test
+        run: docker build -t conductor-test .
+
+      - name: Confirm Docker image
+        run: |
+          docker images conductor-test
+          echo "Docker image built successfully."
