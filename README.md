@@ -26,8 +26,8 @@ You write a YAML file. CONDUCTOR handles the rest — retries, ordering, failure
 | `echo` | Debug | ✅ Live |
 | `webhook` | HTTP POST to any URL | ✅ Live |
 | `safe.propose` | Safe multisig transaction proposal | ✅ Live on Sepolia |
-| `x402.verify` | x402 payment header verification | ✅ Live (mock — production TODO noted) |
-| `erc8004.check` | ERC-8004 agent identity check | ✅ Live (mock — production TODO noted) |
+| `x402.verify` | x402 payment header verification | ✅ Live (mock - production TODO noted) |
+| `erc8004.check` | ERC-8004 agent identity check | ✅ Live (mock - production TODO noted) |
 
 ---
 
