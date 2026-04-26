@@ -13,20 +13,26 @@ export interface ERC8004CheckResult {
   agent_address: string
   reputation?: number
   registered?: boolean
+  agent_count?: number
   error?: string
 }
 
-// ERC-8004 identity verification connector
+// ERC-8004 Identity Registry on Sepolia
 // Standard: https://eips.ethereum.org/EIPS/eip-8004
-// Contracts: https://github.com/erc-8004/erc-8004-contracts
-// Status: Draft standard — contracts deployed on mainnet and testnets
-// TODO: Replace mock with real on-chain call when integrating production:
-//   import { ethers } from "ethers"
-//   const registry = new ethers.Contract(ERC8004_REGISTRY_ADDRESS, ERC8004_ABI, provider)
-//   const identity = await registry.getIdentity(params.agent_address)
-//   const reputation = await registry.getReputation(params.agent_address)
+// Contract: 0x8004A818BFB912233c491871b3d84c89A494BD9e
+// Reputation Registry: 0x8004B663056A597Dffe9eCcC1965A193B7388713
 
-const ERC8004_REGISTRY_ADDRESS = "0x0000000000000000000000000000000000008004"
+const IDENTITY_REGISTRY_ADDRESS = "0x8004A818BFB912233c491871b3d84c89A494BD9e"
+const REPUTATION_REGISTRY_ADDRESS = "0x8004B663056A597Dffe9eCcC1965A193B7388713"
+
+const IDENTITY_REGISTRY_ABI = [
+  "function balanceOf(address owner) external view returns (uint256)",
+  "function ownerOf(uint256 tokenId) external view returns (address)",
+]
+
+const REPUTATION_REGISTRY_ABI = [
+  "function getReputation(address agent) external view returns (uint256)",
+]
 
 export async function erc8004Check(params: ERC8004CheckParams): Promise<ERC8004CheckResult> {
   const rpcUrl = process.env.SEPOLIA_RPC_URL
@@ -36,7 +42,6 @@ export async function erc8004Check(params: ERC8004CheckParams): Promise<ERC8004C
     min_reputation: params.min_reputation ?? 0,
   })
 
-  // Validate address format
   if (!params.agent_address || !params.agent_address.startsWith("0x") || params.agent_address.length !== 42) {
     return {
       verified: false,
@@ -49,34 +54,58 @@ export async function erc8004Check(params: ERC8004CheckParams): Promise<ERC8004C
     const { ethers } = await import("ethers")
     const provider = new ethers.JsonRpcProvider(rpcUrl)
 
-    // Check if address has on-chain activity — proxy for registration
-    // TODO: Replace with actual ERC-8004 registry call
-    const code = await provider.getCode(params.agent_address)
-    const txCount = await provider.getTransactionCount(params.agent_address)
+    // Query Identity Registry — balanceOf > 0 means registered
+    const identityRegistry = new ethers.Contract(
+      IDENTITY_REGISTRY_ADDRESS,
+      IDENTITY_REGISTRY_ABI,
+      provider
+    )
 
-    // Mock reputation score based on tx count — real implementation reads from registry
-    const reputationScore = Math.min(txCount * 10, 100)
-    const isRegistered = txCount > 0
+    const agentCount = await identityRegistry.balanceOf(params.agent_address)
+    const isRegistered = agentCount > 0n
 
-    const minRep = params.min_reputation ?? 0
-    const meetsReputation = reputationScore >= minRep
+    log.info("ERC-8004 identity registry result", {
+      agent_address: params.agent_address,
+      agent_count: agentCount.toString(),
+      is_registered: isRegistered,
+    })
 
     if (!isRegistered) {
-      log.info("ERC-8004 check failed — address not registered", { agent_address: params.agent_address })
+      console.log(`[CONDUCTOR] ERC-8004 — ${params.agent_address} not registered in Identity Registry`)
       return {
         verified: false,
         agent_address: params.agent_address,
         registered: false,
-        reputation: reputationScore,
-        error: "Agent not registered in ERC-8004 registry",
+        agent_count: Number(agentCount),
+        error: "Agent not registered in ERC-8004 Identity Registry",
       }
     }
+
+    // Query Reputation Registry
+    let reputationScore = 0
+    try {
+      const reputationRegistry = new ethers.Contract(
+        REPUTATION_REGISTRY_ADDRESS,
+        REPUTATION_REGISTRY_ABI,
+        provider
+      )
+      const rawReputation = await reputationRegistry.getReputation(params.agent_address)
+      reputationScore = Number(rawReputation)
+    } catch {
+      // Reputation registry may not have a score for this address — default to 0
+      log.info("ERC-8004 reputation registry — no score found, defaulting to 0")
+      reputationScore = 0
+    }
+
+    const minRep = params.min_reputation ?? 0
+    const meetsReputation = reputationScore >= minRep
 
     if (!meetsReputation) {
       return {
         verified: false,
         agent_address: params.agent_address,
         registered: true,
+        agent_count: Number(agentCount),
         reputation: reputationScore,
         error: `Reputation ${reputationScore} below minimum ${minRep}`,
       }
@@ -84,14 +113,17 @@ export async function erc8004Check(params: ERC8004CheckParams): Promise<ERC8004C
 
     log.info("ERC-8004 check success", {
       agent_address: params.agent_address,
+      agent_count: agentCount.toString(),
       reputation: reputationScore,
     })
-    console.log(`[CONDUCTOR] ERC-8004 identity verified — ${params.agent_address} reputation: ${reputationScore}`)
+
+    console.log(`[CONDUCTOR] ERC-8004 identity verified — ${params.agent_address} agents: ${agentCount} reputation: ${reputationScore}`)
 
     return {
       verified: true,
       agent_address: params.agent_address,
       registered: true,
+      agent_count: Number(agentCount),
       reputation: reputationScore,
     }
   } catch (err) {
