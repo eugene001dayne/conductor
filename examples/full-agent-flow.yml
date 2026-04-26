@@ -1,0 +1,32 @@
+name: full-agent-flow
+version: "1.0"
+
+steps:
+  - id: verify-payment
+    type: x402.verify
+    params:
+      payment_header: "x402-USDC-10.00-0xEb65E3D7024874298AF6FcbC59888c9e8089EB9F"
+      amount_usd: 10.00
+      token: "USDC"
+
+  - id: check-identity
+    type: erc8004.check
+    if: "verify-payment.verified"
+    params:
+      agent_address: "0xEb65E3D7024874298AF6FcbC59888c9e8089EB9F"
+      min_reputation: 0
+
+  - id: notify-webhook
+    type: webhook
+    if: "check-identity.verified"
+    params:
+      url: "https://webhook.site/92206d09-9233-42d3-9260-47c165a674cc"
+      payload:
+        event: "conductor.agent.verified"
+        message: "Payment verified and identity confirmed. Agent cleared."
+
+  - id: complete
+    type: echo
+    if: "notify-webhook.success"
+    params:
+      message: "Full agent flow complete. Payment, identity, notification — all cleared."

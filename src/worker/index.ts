@@ -2,6 +2,8 @@ import { Worker, NativeConnection } from "@temporalio/worker"
 import { echo } from "../activities/echo"
 import { safePropose } from "../activities/safe-multisig"
 import { webhookSend } from "../activities/webhook"
+import { x402Verify } from "../activities/x402-verify"
+import { erc8004Check } from "../activities/erc8004-check"
 import * as dotenv from "dotenv"
 
 dotenv.config()
@@ -25,7 +27,7 @@ export async function createWorker(): Promise<Worker> {
 
   const worker = await Worker.create({
     workflowsPath: require.resolve("../workflows/echo-workflow"),
-    activities: { echo, safePropose, webhookSend },
+    activities: { echo, safePropose, webhookSend, x402Verify, erc8004Check },
     taskQueue,
     connection,
     namespace,
