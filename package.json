@@ -26,6 +26,8 @@
     "@temporalio/client": "^1.16.1",
     "@temporalio/worker": "^1.16.1",
     "@temporalio/workflow": "^1.16.1",
+    "@x402/core": "^2.10.0",
+    "@x402/evm": "^2.10.0",
     "dotenv": "^16.0.0",
     "ethers": "^6.16.0",
     "js-yaml": "^4.1.1",
