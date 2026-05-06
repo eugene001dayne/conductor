@@ -137,6 +137,53 @@ if: "step-id.success"     # runs if step-id returned success: true
 
 ---
 
+Deploy to Google Cloud Run
+CONDUCTOR can be deployed to Google Cloud Run for production use. The worker connects to Temporal Cloud and processes workflows durably in the cloud.
+Prerequisites
+
+Google Cloud account with billing enabled
+gcloud CLI installed and authenticated
+Docker installed
+Your .env values ready
+
+Step 1 — Set up Google Cloud project
+bash# Create a new project or use existing
+gcloud projects create conductor-prod --name="CONDUCTOR"
+gcloud config set project conductor-prod
+
+# Enable required APIs
+gcloud services enable run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+gcloud services enable containerregistry.googleapis.com
+Step 2 — Configure environment variables in Cloud Run
+bashgcloud run deploy conductor \
+  --image gcr.io/YOUR_PROJECT_ID/conductor:latest \
+  --region us-central1 \
+  --platform managed \
+  --allow-unauthenticated \
+  --set-env-vars "TEMPORAL_ADDRESS=your-namespace.tmprl.cloud:7233" \
+  --set-env-vars "TEMPORAL_NAMESPACE=your-namespace.tmprl.cloud" \
+  --set-env-vars "TEMPORAL_API_KEY=your-temporal-api-key" \
+  --set-env-vars "TEMPORAL_TASK_QUEUE=conductor-task-queue" \
+  --set-env-vars "SAFE_ADDRESS=0xYourSafeAddress" \
+  --set-env-vars "SEPOLIA_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/your-key" \
+  --set-env-vars "SIGNER_PRIVATE_KEY=your-private-key" \
+  --set-env-vars "GEMINI_API_KEY=your-gemini-api-key"
+Step 3 — Build and deploy using Cloud Build
+bash# Submit build to Cloud Build
+gcloud builds submit --config cloudbuild.yaml .
+Step 4 — Verify deployment
+bash# Check service status
+gcloud run services describe conductor --region us-central1
+
+# View logs
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=conductor" --limit 50
+Step 5 — Trigger a workflow
+Once deployed, trigger workflows using the Temporal Cloud UI or SDK. The Cloud Run instance runs the worker — it connects to Temporal Cloud and processes any workflow you start.
+Environment Variables Reference
+VariableDescriptionTEMPORAL_ADDRESSYour Temporal Cloud namespace endpointTEMPORAL_NAMESPACEYour Temporal Cloud namespaceTEMPORAL_API_KEYTemporal Cloud API keyTEMPORAL_TASK_QUEUETask queue name (default: conductor-task-queue)SAFE_ADDRESSSafe multisig wallet address on SepoliaSEPOLIA_RPC_URLAlchemy Sepolia RPC URLSIGNER_PRIVATE_KEYWallet private key for Safe transactionsGEMINI_API_KEYGoogle Gemini API key
+
+
 ## Project Structure
 
 ```
@@ -201,7 +248,6 @@ CONDUCTOR is open source. If you want to add a connector:
 - [Zod](https://zod.dev) — schema validation
 
 ---
-
 ## License
 
 MIT — use it, fork it, build on it.
