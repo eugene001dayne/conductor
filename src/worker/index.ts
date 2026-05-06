@@ -5,6 +5,7 @@ import { webhookSend } from "../activities/webhook"
 import { x402Verify } from "../activities/x402-verify"
 import { erc8004Check } from "../activities/erc8004-check"
 import * as dotenv from "dotenv"
+import { geminiGenerate } from "../activities/gemini-generate"
 
 dotenv.config()
 
@@ -27,7 +28,7 @@ export async function createWorker(): Promise<Worker> {
 
   const worker = await Worker.create({
     workflowsPath: require.resolve("../workflows/echo-workflow"),
-    activities: { echo, safePropose, webhookSend, x402Verify, erc8004Check },
+    activities: { echo, safePropose, webhookSend, x402Verify, erc8004Check, geminiGenerate },
     taskQueue,
     connection,
     namespace,

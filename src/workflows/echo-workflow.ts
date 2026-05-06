@@ -4,6 +4,7 @@ import type { SafeProposeParams, SafeProposeResult } from "../activities/safe-mu
 import type { WebhookParams, WebhookResult } from "../activities/webhook"
 import type { X402VerifyParams, X402VerifyResult } from "../activities/x402-verify"
 import type { ERC8004CheckParams, ERC8004CheckResult } from "../activities/erc8004-check"
+import type { GeminiGenerateParams, GeminiGenerateResult } from "../activities/gemini-generate"
 
 const activities = proxyActivities<{
   echo: (params: { message: string }) => Promise<string>
@@ -11,6 +12,7 @@ const activities = proxyActivities<{
   webhookSend: (params: WebhookParams) => Promise<WebhookResult>
   x402Verify: (params: X402VerifyParams) => Promise<X402VerifyResult>
   erc8004Check: (params: ERC8004CheckParams) => Promise<ERC8004CheckResult>
+  geminiGenerate: (params: GeminiGenerateParams) => Promise<GeminiGenerateResult>
 }>({
   startToCloseTimeout: "60 seconds",
 })
@@ -86,6 +88,16 @@ export async function conductorWorkflow(config: WorkflowConfig): Promise<string[
       })
       context[step.id] = { ...result }
       results.push(`ERC-8004 verified: ${result.verified} — reputation: ${result.reputation}`)
+    }
+
+    if (step.type === "gemini.generate") {
+      const result = await activities.geminiGenerate({
+        prompt: step.params?.prompt as string,
+        model: step.params?.model as string | undefined,
+        system_instruction: step.params?.system_instruction as string | undefined,
+      })
+      context[step.id] = { success: result.success, text: result.text }
+      results.push(`Gemini: ${result.text?.substring(0, 150)}`)
     }
   }
 

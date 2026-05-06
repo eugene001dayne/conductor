@@ -30,7 +30,7 @@ async function run() {
   })
 
   if (devMode) {
-    const yamlPath = path.resolve(__dirname, "../examples/full-agent-flow.yml")
+    const yamlPath = path.resolve(__dirname, "../examples/gemini-test.yml")
     const raw = fs.readFileSync(yamlPath, "utf8")
     const parsed = yaml.load(raw)
     const config = WorkflowConfigSchema.parse(parsed)

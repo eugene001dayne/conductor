@@ -1,0 +1,15 @@
+name: gemini-test
+version: "1.0"
+
+steps:
+  - id: step-1
+    type: gemini.generate
+    params:
+      prompt: "In one sentence, what is the biggest risk of deploying AI agents without governance infrastructure?"
+      model: "gemini-2.0-flash-001"
+
+  - id: step-2
+    type: echo
+    if: "step-1.success"
+    params:
+      message: "Gemini connector working inside CONDUCTOR."

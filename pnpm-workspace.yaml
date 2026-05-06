@@ -1,3 +1,4 @@
 allowBuilds:
+  '@google/genai': false
   '@swc/core': true
   protobufjs: true
