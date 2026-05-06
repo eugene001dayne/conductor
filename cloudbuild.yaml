@@ -1,0 +1,34 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/conductor:$COMMIT_SHA'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/conductor:$COMMIT_SHA'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'conductor'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/conductor:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--set-env-vars'
+      - 'TEMPORAL_ADDRESS=$$TEMPORAL_ADDRESS,TEMPORAL_NAMESPACE=$$TEMPORAL_NAMESPACE,TEMPORAL_API_KEY=$$TEMPORAL_API_KEY,TEMPORAL_TASK_QUEUE=$$TEMPORAL_TASK_QUEUE,SAFE_ADDRESS=$$SAFE_ADDRESS,SEPOLIA_RPC_URL=$$SEPOLIA_RPC_URL,SIGNER_PRIVATE_KEY=$$SIGNER_PRIVATE_KEY,GEMINI_API_KEY=$$GEMINI_API_KEY'
+
+substitutions:
+  _REGION: us-central1
+
+options:
+  logging: CLOUD_LOGGING_ONLY
