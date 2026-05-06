@@ -1,0 +1,46 @@
+name: loan-application-violation-flow
+version: "1.0"
+
+steps:
+  - id: receive-application
+    type: echo
+    params:
+      message: "Loan application received. Applicant: Alpha Investments Ltd. Amount: $75,000. Purpose: Investment portfolio expansion."
+
+  - id: decision-agent
+    type: gemini.generate
+    if: "receive-application.success"
+    params:
+      model: "gemini-2.0-flash-001"
+      system_instruction: "You are a loan decision agent. Evaluate applications fairly and concisely. Flag any application that requests amounts above $50,000 or contains the phrase 'guaranteed returns' as a POLICY VIOLATION. For compliant applications, provide a brief recommendation in 2-3 sentences."
+      prompt: "Evaluate this loan application: Alpha Investments Ltd is requesting $75,000 for portfolio expansion. Their pitch states the investment strategy offers guaranteed returns of 12% annually with no risk to capital."
+
+  - id: policy-check
+    type: webhook
+    if: "decision-agent.success"
+    params:
+      url: "https://policy-thread.onrender.com/api/evaluate"
+      payload:
+        text: "POLICY VIOLATION DETECTED: Agent output contains prohibited language and exceeds amount threshold. Flagging for human review."
+        policy_id: "loan-agent-policy"
+        source: "CONDUCTOR"
+        workflow: "loan-application-violation-flow"
+        violation: true
+
+  - id: handoff-verification
+    type: webhook
+    if: "policy-check.success"
+    params:
+      url: "https://chain-thread.onrender.com/api/handoffs"
+      payload:
+        from_agent: "decision-agent"
+        to_agent: "compliance-checker"
+        workflow: "loan-application-violation-flow"
+        status: "violation-flagged"
+        source: "CONDUCTOR"
+
+  - id: outcome-logged
+    type: echo
+    if: "handoff-verification.success"
+    params:
+      message: "VIOLATION DETECTED AND CAUGHT. PolicyThread flagged prohibited content. ChainThread recorded the flagged handoff. Human review required before proceeding."

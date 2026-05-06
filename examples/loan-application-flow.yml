@@ -1,0 +1,45 @@
+name: loan-application-flow
+version: "1.0"
+
+steps:
+  - id: receive-application
+    type: echo
+    params:
+      message: "Loan application received. Applicant: James Mensah. Amount: $15,000. Purpose: Small business equipment purchase."
+
+  - id: decision-agent
+    type: gemini.generate
+    if: "receive-application.success"
+    params:
+      model: "gemini-2.0-flash-001"
+      system_instruction: "You are a loan decision agent. Evaluate applications fairly and concisely. Flag any application that requests amounts above $50,000 or contains the phrase 'guaranteed returns' as a POLICY VIOLATION. For compliant applications, provide a brief recommendation in 2-3 sentences."
+      prompt: "Evaluate this loan application: Applicant James Mensah is requesting $15,000 for small business equipment purchase. He has been in business for 3 years with consistent revenue. No prior defaults."
+
+  - id: policy-check
+    type: webhook
+    if: "decision-agent.success"
+    params:
+      url: "https://policy-thread.onrender.com/api/evaluate"
+      payload:
+        text: "Loan decision agent output submitted for compliance review."
+        policy_id: "loan-agent-policy"
+        source: "CONDUCTOR"
+        workflow: "loan-application-flow"
+
+  - id: handoff-verification
+    type: webhook
+    if: "policy-check.success"
+    params:
+      url: "https://chain-thread.onrender.com/api/handoffs"
+      payload:
+        from_agent: "decision-agent"
+        to_agent: "compliance-checker"
+        workflow: "loan-application-flow"
+        status: "verified"
+        source: "CONDUCTOR"
+
+  - id: outcome-logged
+    type: echo
+    if: "handoff-verification.success"
+    params:
+      message: "Loan application processed. Decision logged. Compliance verified. Handoff recorded on ChainThread."
