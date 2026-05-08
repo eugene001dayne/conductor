@@ -11,7 +11,7 @@ steps:
     type: gemini.generate
     if: "receive-application.success"
     params:
-      model: "gemini-2.0-flash-001"
+      model: "gemini-3-flash-preview"
       system_instruction: "You are a loan decision agent. Evaluate applications fairly and concisely. Flag any application that requests amounts above $50,000 or contains the phrase 'guaranteed returns' as a POLICY VIOLATION. For compliant applications, provide a brief recommendation in 2-3 sentences."
       prompt: "Evaluate this loan application: Applicant James Mensah is requesting $15,000 for small business equipment purchase. He has been in business for 3 years with consistent revenue. No prior defaults."
 
@@ -19,24 +19,46 @@ steps:
     type: webhook
     if: "decision-agent.success"
     params:
-      url: "https://policy-thread.onrender.com/api/evaluate"
+      url: "https://policy-thread.onrender.com/evaluate"
       payload:
-        text: "Loan decision agent output submitted for compliance review."
-        policy_id: "loan-agent-policy"
-        source: "CONDUCTOR"
-        workflow: "loan-application-flow"
+        user_input: "Loan application: James Mensah, $15,000, small business equipment"
+        ai_output: "Application approved. Amount within threshold. No prohibited language detected. Recommend approval pending standard credit check."
+        model_used: "gemini-3-flash-preview"
+        session_id: "conductor-demo-session"
 
   - id: handoff-verification
     type: webhook
     if: "policy-check.success"
     params:
-      url: "https://chain-thread.onrender.com/api/handoffs"
+      url: "https://chain-thread.onrender.com/envelopes"
       payload:
-        from_agent: "decision-agent"
-        to_agent: "compliance-checker"
-        workflow: "loan-application-flow"
-        status: "verified"
-        source: "CONDUCTOR"
+        chain_id: "conductor-demo-chain"
+        sender_id: "gemini-decision-agent"
+        sender_role: "decision_agent"
+        receiver_id: "compliance-layer"
+        receiver_role: "compliance_monitor"
+        payload:
+          application_id: "loan-clean-001"
+          decision: "Application approved. Amount within threshold. No policy violations detected."
+          amount: 15000
+        summary: "Loan decision handed off to compliance layer"
+        provenance:
+          - field: "application_id"
+            source: "human_input"
+            confidence: 1.0
+          - field: "decision"
+            source: "model_generated"
+            confidence: 0.95
+          - field: "amount"
+            source: "human_input"
+            confidence: 1.0
+        contract:
+          required_fields:
+            - application_id
+            - decision
+            - amount
+          assertions: []
+          on_fail: "block"
 
   - id: outcome-logged
     type: echo

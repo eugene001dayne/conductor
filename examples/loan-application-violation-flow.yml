@@ -11,7 +11,7 @@ steps:
     type: gemini.generate
     if: "receive-application.success"
     params:
-      model: "gemini-2.0-flash-001"
+      model: "gemini-3-flash-preview"
       system_instruction: "You are a loan decision agent. Evaluate applications fairly and concisely. Flag any application that requests amounts above $50,000 or contains the phrase 'guaranteed returns' as a POLICY VIOLATION. For compliant applications, provide a brief recommendation in 2-3 sentences."
       prompt: "Evaluate this loan application: Alpha Investments Ltd is requesting $75,000 for portfolio expansion. Their pitch states the investment strategy offers guaranteed returns of 12% annually with no risk to capital."
 
@@ -19,25 +19,46 @@ steps:
     type: webhook
     if: "decision-agent.success"
     params:
-      url: "https://policy-thread.onrender.com/api/evaluate"
+      url: "https://policy-thread.onrender.com/evaluate"
       payload:
-        text: "POLICY VIOLATION DETECTED: Agent output contains prohibited language and exceeds amount threshold. Flagging for human review."
-        policy_id: "loan-agent-policy"
-        source: "CONDUCTOR"
-        workflow: "loan-application-violation-flow"
-        violation: true
+        user_input: "Loan application: Alpha Investments Ltd, $75,000, guaranteed returns pitch"
+        ai_output: "POLICY VIOLATION: This application exceeds the maximum allowable amount of $50,000 and contains the prohibited phrase guaranteed returns."
+        model_used: "gemini-3-flash-preview"
+        session_id: "conductor-demo-session"
 
   - id: handoff-verification
     type: webhook
     if: "policy-check.success"
     params:
-      url: "https://chain-thread.onrender.com/api/handoffs"
+      url: "https://chain-thread.onrender.com/envelopes"
       payload:
-        from_agent: "decision-agent"
-        to_agent: "compliance-checker"
-        workflow: "loan-application-violation-flow"
-        status: "violation-flagged"
-        source: "CONDUCTOR"
+        chain_id: "conductor-demo-chain"
+        sender_id: "gemini-decision-agent"
+        sender_role: "decision_agent"
+        receiver_id: "compliance-layer"
+        receiver_role: "compliance_monitor"
+        payload:
+          application_id: "loan-violation-001"
+          decision: "POLICY VIOLATION: Amount exceeds threshold and contains prohibited phrase guaranteed returns"
+          amount: 75000
+        summary: "Loan decision handed off to compliance layer"
+        provenance:
+          - field: "application_id"
+            source: "human_input"
+            confidence: 1.0
+          - field: "decision"
+            source: "model_generated"
+            confidence: 0.95
+          - field: "amount"
+            source: "human_input"
+            confidence: 1.0
+        contract:
+          required_fields:
+            - application_id
+            - decision
+            - amount
+          assertions: []
+          on_fail: "block"
 
   - id: outcome-logged
     type: echo

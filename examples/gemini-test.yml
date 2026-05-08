@@ -6,7 +6,7 @@ steps:
     type: gemini.generate
     params:
       prompt: "In one sentence, what is the biggest risk of deploying AI agents without governance infrastructure?"
-      model: "gemini-2.0-flash-001"
+      model: "gemini-3-flash-preview"
 
   - id: step-2
     type: echo
